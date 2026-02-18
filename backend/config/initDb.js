@@ -76,14 +76,25 @@ const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug);
     `);
 
-    // Default admin
-    const defaultPassword = process.env.DEFAULT_ADMIN_PASS || 'admin123';
+    const defaultPassword = process.env.DEFAULT_ADMIN_PASS;
+    const defaultEmail = process.env.DEFAULT_ADMIN_EMAIL;
+    const defaultUsername = process.env.DEFAULT_ADMIN_USERNAME || 'admin';
+
+    if (!defaultPassword) {
+      throw new Error('DEFAULT_ADMIN_PASS environment variable is required');
+    }
+
+    if (!defaultEmail) {
+      throw new Error('DEFAULT_ADMIN_EMAIL environment variable is required');
+    }
+
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
     await client.query(
       `INSERT INTO users (username, email, password, role)
-        VALUES ($1, $2, $3, 'admin')
-        ON CONFLICT (email) DO NOTHING`,
-      ['admin', process.env.DEFAULT_ADMIN_EMAIL || 'thelaptopdepot02@gmail.com', hashedPassword]
+   VALUES ($1, $2, $3, 'admin')
+   ON CONFLICT (email) DO NOTHING`,
+      [defaultUsername, defaultEmail, hashedPassword]
     );
 
     // Default categories
