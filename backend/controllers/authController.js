@@ -1,57 +1,115 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const authenticateToken = async (req, res, next) => {
-    try {
-        const authHeader = req.headers['authorization'];
-        const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+const authController = {
+    // Login
+    login: async (req, res) => {
+        try {
+            const { username, password } = req.body;
 
-        if (!token) {
-            return res.status(401).json({
+            // Find user
+            const user = await User.findByUsername(username);
+            if (!user) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid credentials'
+                });
+            }
+
+            // Verify password
+            const isValidPassword = await User.comparePassword(password, user.password);
+            if (!isValidPassword) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid credentials'
+                });
+            }
+
+            // Generate JWT token
+            const token = jwt.sign(
+                { userId: user.id, username: user.username, role: user.role },
+                process.env.JWT_SECRET,
+                { expiresIn: process.env.JWT_EXPIRE || '7d' }
+            );
+
+            res.json({
+                success: true,
+                message: 'Login successful',
+                data: {
+                    token,
+                    user: {
+                        id: user.id,
+                        username: user.username,
+                        email: user.email,
+                        role: user.role
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Login error:', error);
+            res.status(500).json({
                 success: false,
-                message: 'Access token required'
+                message: 'Login failed'
             });
         }
+    },
 
-        jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
-            if (err) {
-                return res.status(403).json({
+    // Get current user profile
+    getProfile: async (req, res) => {
+        try {
+            const user = await User.findById(req.user.id);
+
+            res.json({
+                success: true,
+                data: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    role: user.role,
+                    created_at: user.created_at
+                }
+            });
+        } catch (error) {
+            console.error('Get profile error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to fetch profile'
+            });
+        }
+    },
+
+    // Change password
+    changePassword: async (req, res) => {
+        try {
+            const { currentPassword, newPassword } = req.body;
+
+            // Get user with password
+            const user = await User.findByUsername(req.user.username);
+
+            // Verify current password
+            const isValid = await User.comparePassword(currentPassword, user.password);
+            if (!isValid) {
+                return res.status(401).json({
                     success: false,
-                    message: 'Invalid or expired token'
+                    message: 'Current password is incorrect'
                 });
             }
 
-            // Get user from database
-            const user = await User.findById(decoded.userId);
+            // Update password
+            await User.updatePassword(req.user.id, newPassword);
 
-            if (!user) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'User not found'
-                });
-            }
-
-            req.user = user;
-            next();
-        });
-    } catch (error) {
-        console.error('Authentication error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Authentication failed'
-        });
+            res.json({
+                success: true,
+                message: 'Password updated successfully'
+            });
+        } catch (error) {
+            console.error('Change password error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to change password'
+            });
+        }
     }
 };
 
-const isAdmin = (req, res, next) => {
-    if (req.user && req.user.role === 'admin') {
-        next();
-    } else {
-        res.status(403).json({
-            success: false,
-            message: 'Admin access required'
-        });
-    }
-};
-
-module.exports = { authenticateToken, isAdmin };
+module.exports = authController;
