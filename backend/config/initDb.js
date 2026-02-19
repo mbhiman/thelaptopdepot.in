@@ -93,9 +93,13 @@ const initDatabase = async () => {
     await client.query(
       `INSERT INTO users (username, email, password, role)
    VALUES ($1, $2, $3, 'admin')
-   ON CONFLICT (email) DO NOTHING`,
+   ON CONFLICT (email) DO UPDATE
+   SET username = EXCLUDED.username,
+       password = EXCLUDED.password,
+       role = 'admin'`,
       [defaultUsername, defaultEmail, hashedPassword]
     );
+
 
     // Default categories
     const categories = [
