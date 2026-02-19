@@ -1,48 +1,22 @@
-import { useState, useEffect } from 'react';
-import { productsAPI, categoriesAPI } from '../services/api';
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { HiPlus, HiPencil, HiTrash, HiSearch } from 'react-icons/hi';
 import Loading from '../components/Loading';
 import ProductForm from '../components/ProductForm';
-import { HiPencil, HiTrash, HiPlus, HiSearch } from 'react-icons/hi';
+import { useFetch } from '../hooks/useFetch';
+import { productsAPI } from '../services/api';
 
 const Products = () => {
-    const [products, setProducts] = useState([]);
-    const [categories, setCategories] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { data: products, loading, refetch } = useFetch(() => productsAPI.getAll());
     const [showForm, setShowForm] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState('');
+    const [deleteLoading, setDeleteLoading] = useState(null);
 
-    useEffect(() => {
-        fetchProducts();
-        fetchCategories();
-    }, []);
-
-    const fetchProducts = async () => {
-        try {
-            setLoading(true);
-            const response = await productsAPI.getAll();
-            setProducts(response.data.data);
-        } catch (error) {
-            console.error('Failed to fetch products:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchCategories = async () => {
-        try {
-            const response = await categoriesAPI.getAll();
-            setCategories(response.data.data);
-        } catch (error) {
-            console.error('Failed to fetch categories:', error);
-        }
-    };
-
-    const handleCreate = () => {
-        setEditingProduct(null);
-        setShowForm(true);
-    };
+    const filteredProducts = products?.filter(product =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.brand?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const handleEdit = (product) => {
         setEditingProduct(product);
@@ -50,207 +24,173 @@ const Products = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this product?')) {
-            return;
-        }
+        if (!window.confirm('Are you sure you want to delete this product?')) return;
 
         try {
+            setDeleteLoading(id);
             await productsAPI.delete(id);
-            fetchProducts();
+            refetch();
         } catch (error) {
-            alert('Failed to delete product');
+            alert(error.response?.data?.message || 'Failed to delete product');
+        } finally {
+            setDeleteLoading(null);
         }
     };
 
     const handleFormClose = () => {
         setShowForm(false);
         setEditingProduct(null);
+        refetch();
     };
-
-    const handleFormSuccess = () => {
-        setShowForm(false);
-        setEditingProduct(null);
-        fetchProducts();
-    };
-
-    const handleStockToggle = async (product) => {
-        const newStatus = product.stock_status === 'in_stock' ? 'out_of_stock' : 'in_stock';
-        try {
-            await productsAPI.updateStock(product.id, newStatus);
-            fetchProducts();
-        } catch (error) {
-            alert('Failed to update stock status');
-        }
-    };
-
-    // Filter products
-    const filteredProducts = products.filter(product => {
-        const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.brand?.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesCategory = !selectedCategory || product.category_id === parseInt(selectedCategory);
-        return matchesSearch && matchesCategory;
-    });
 
     if (loading) {
         return <Loading />;
     }
 
     return (
-        <div>
+        <div className="max-w-7xl mx-auto">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-                <div>
-                    <h1 className="text-3xl font-display font-bold text-primary-900 mb-2">
-                        Products
-                    </h1>
-                    <p className="text-primary-600">
-                        Manage your product inventory
-                    </p>
+            <div className="mb-8">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h1 className="text-3xl font-display font-bold text-primary-900 mb-2">
+                            Products
+                        </h1>
+                        <p className="text-primary-600">
+                            Manage your product inventory
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => setShowForm(true)}
+                        className="btn-primary flex items-center space-x-2"
+                    >
+                        <HiPlus size={20} />
+                        <span>Add Product</span>
+                    </button>
                 </div>
-                <button onClick={handleCreate} className="btn-primary">
-                    <HiPlus className="inline mr-2" size={20} />
-                    Add Product
-                </button>
             </div>
 
-            {/* Filters */}
+            {/* Search */}
             <div className="card p-6 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Search */}
-                    <div className="relative">
-                        <HiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-primary-400" size={20} />
-                        <input
-                            type="text"
-                            placeholder="Search products..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="input pl-10"
-                        />
-                    </div>
-
-                    {/* Category filter */}
-                    <select
-                        value={selectedCategory}
-                        onChange={(e) => setSelectedCategory(e.target.value)}
-                        className="input"
-                    >
-                        <option value="">All Categories</option>
-                        {categories.map(category => (
-                            <option key={category.id} value={category.id}>
-                                {category.name}
-                            </option>
-                        ))}
-                    </select>
+                <div className="relative">
+                    <HiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-primary-400" size={20} />
+                    <input
+                        type="text"
+                        placeholder="Search products..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="input-field pl-12"
+                    />
                 </div>
             </div>
 
             {/* Products Table */}
             <div className="card overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-primary-200">
-                        <thead className="bg-primary-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-primary-700 uppercase tracking-wider">
-                                    Product
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-primary-700 uppercase tracking-wider">
-                                    Category
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-primary-700 uppercase tracking-wider">
-                                    Price
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-primary-700 uppercase tracking-wider">
-                                    Stock
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-primary-700 uppercase tracking-wider">
-                                    Featured
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-primary-700 uppercase tracking-wider">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-primary-200">
-                            {filteredProducts.length > 0 ? (
-                                filteredProducts.map(product => (
-                                    <tr key={product.id} className="hover:bg-primary-50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div>
-                                                <div className="text-sm font-medium text-primary-900">
-                                                    {product.name}
-                                                </div>
-                                                <div className="text-sm text-primary-500">
-                                                    {product.brand}
+                {filteredProducts && filteredProducts.length > 0 ? (
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-primary-50 border-b border-primary-200">
+                                <tr>
+                                    <th className="text-left py-4 px-6 text-sm font-semibold text-primary-700">
+                                        Product
+                                    </th>
+                                    <th className="text-left py-4 px-6 text-sm font-semibold text-primary-700">
+                                        Category
+                                    </th>
+                                    <th className="text-left py-4 px-6 text-sm font-semibold text-primary-700">
+                                        Price
+                                    </th>
+                                    <th className="text-left py-4 px-6 text-sm font-semibold text-primary-700">
+                                        Stock
+                                    </th>
+                                    <th className="text-left py-4 px-6 text-sm font-semibold text-primary-700">
+                                        Status
+                                    </th>
+                                    <th className="text-right py-4 px-6 text-sm font-semibold text-primary-700">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredProducts.map((product, index) => (
+                                    <motion.tr
+                                        key={product.id}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: index * 0.05 }}
+                                        className="border-b border-primary-100 hover:bg-primary-50 transition-colors"
+                                    >
+                                        <td className="py-4 px-6">
+                                            <div className="flex items-center space-x-3">
+                                                <div className="w-12 h-12 bg-primary-100 rounded flex-shrink-0"></div>
+                                                <div>
+                                                    <p className="font-medium text-primary-900 text-sm">
+                                                        {product.name}
+                                                    </p>
+                                                    <p className="text-xs text-primary-500">{product.brand}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="text-sm text-primary-900">
-                                                {product.category_name}
-                                            </span>
+                                        <td className="py-4 px-6 text-sm text-primary-700">
+                                            {product.category_name}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="text-sm font-medium text-primary-900">
-                                                ₹{product.price.toLocaleString()}
-                                            </span>
+                                        <td className="py-4 px-6 text-sm font-semibold text-primary-900">
+                                            ₹{product.price.toLocaleString('en-IN')}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <button
-                                                onClick={() => handleStockToggle(product)}
-                                                className={`px-3 py-1 rounded-full text-xs font-medium ${product.stock_status === 'in_stock'
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : 'bg-red-100 text-red-800'
-                                                    }`}
-                                            >
-                                                {product.stock_status === 'in_stock' ? 'In Stock' : 'Out of Stock'}
-                                            </button>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            {product.is_featured ? (
-                                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                                    Featured
-                                                </span>
+                                        <td className="py-4 px-6 text-sm">
+                                            {product.stock_status === 'in_stock' ? (
+                                                <span className="text-green-600">Available</span>
                                             ) : (
-                                                <span className="text-sm text-primary-400">-</span>
+                                                <span className="text-red-600">Unavailable</span>
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button
-                                                onClick={() => handleEdit(product)}
-                                                className="text-primary-600 hover:text-primary-900 mr-4"
-                                                title="Edit"
-                                            >
-                                                <HiPencil size={18} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(product.id)}
-                                                className="text-red-600 hover:text-red-900"
-                                                title="Delete"
-                                            >
-                                                <HiTrash size={18} />
-                                            </button>
+                                        <td className="py-4 px-6">
+                                            <div className="flex items-center space-x-2">
+                                                {product.is_featured && (
+                                                    <span className="px-2 py-1 bg-accent-100 text-accent-700 text-xs font-medium rounded">
+                                                        Featured
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan="6" className="px-6 py-12 text-center text-primary-500">
-                                        No products found
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                        <td className="py-4 px-6">
+                                            <div className="flex items-center justify-end space-x-2">
+                                                <button
+                                                    onClick={() => handleEdit(product)}
+                                                    className="p-2 text-primary-600 hover:bg-primary-100 rounded transition-colors"
+                                                    title="Edit"
+                                                >
+                                                    <HiPencil size={18} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(product.id)}
+                                                    disabled={deleteLoading === product.id}
+                                                    className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                                                    title="Delete"
+                                                >
+                                                    <HiTrash size={18} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </motion.tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="text-center py-12">
+                        <p className="text-primary-500">
+                            {searchTerm ? 'No products match your search' : 'No products yet'}
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* Product Form Modal */}
             {showForm && (
                 <ProductForm
                     product={editingProduct}
-                    categories={categories}
                     onClose={handleFormClose}
-                    onSuccess={handleFormSuccess}
                 />
             )}
         </div>

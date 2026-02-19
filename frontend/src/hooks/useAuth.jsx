@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -7,7 +7,6 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Load user from localStorage on mount
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
         const token = localStorage.getItem('token');
@@ -15,23 +14,20 @@ export const AuthProvider = ({ children }) => {
         if (storedUser && token) {
             setUser(JSON.parse(storedUser));
         }
-
         setLoading(false);
     }, []);
 
-    // Login function
     const login = async (credentials) => {
         const response = await authAPI.login(credentials);
-        const { token, user } = response.data.data;
+        const { token, user: userData } = response.data.data;
 
         localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
-        setUser(user);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
 
         return response.data;
     };
 
-    // Logout function
     const logout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -40,9 +36,9 @@ export const AuthProvider = ({ children }) => {
 
     const value = {
         user,
-        loading,
         login,
         logout,
+        loading,
         isAuthenticated: !!user,
     };
 
@@ -52,7 +48,7 @@ export const AuthProvider = ({ children }) => {
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (!context) {
-        throw new Error('useAuth must be used within AuthProvider');
+        throw new Error('useAuth must be used within an AuthProvider');
     }
     return context;
 };

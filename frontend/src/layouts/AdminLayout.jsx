@@ -23,11 +23,18 @@ const AdminLayout = () => {
             <header className="bg-white border-b border-primary-200 sticky top-0 z-40">
                 <div className="px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex justify-between items-center">
+
+                        {/* Logo + Title */}
                         <div className="flex items-center space-x-3">
-                            {/* Logo */}
-                            <div className="w-10 h-10 bg-primary-800 rounded-sm flex items-center justify-center overflow-hidden">
-                                <span className="text-white font-display font-bold text-xl">LD</span>
+                            <div className="w-10 h-10 rounded-md overflow-hidden bg-primary-800 flex items-center justify-center">
+                                <img
+                                    src="/logo.png"
+                                    alt="The Laptop Depot"
+                                    className="w-full h-full object-contain"
+                                />
                             </div>
+
+
                             <div>
                                 <h1 className="text-lg font-display font-bold text-primary-900">
                                     Admin Panel
@@ -36,11 +43,13 @@ const AdminLayout = () => {
                             </div>
                         </div>
 
+                        {/* User + Logout */}
                         <div className="flex items-center space-x-4">
                             <div className="text-right hidden sm:block">
                                 <p className="text-sm font-medium text-primary-900">{user?.username}</p>
                                 <p className="text-xs text-primary-500">{user?.role}</p>
                             </div>
+
                             <button
                                 onClick={handleLogout}
                                 className="flex items-center space-x-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-sm transition-colors"

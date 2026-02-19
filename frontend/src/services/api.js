@@ -1,14 +1,15 @@
 import axios from 'axios';
 
-// Create axios instance with base configuration
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+    baseURL: API_BASE_URL,
     headers: {
-        'Content-Type': 'application/json'
-    }
+        'Content-Type': 'application/json',
+    },
 });
 
-// Request interceptor - Add auth token to all requests
+// Request interceptor to add auth token
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
@@ -17,17 +18,14 @@ api.interceptors.request.use(
         }
         return config;
     },
-    (error) => {
-        return Promise.reject(error);
-    }
+    (error) => Promise.reject(error)
 );
 
-// Response interceptor - Handle common errors
+// Response interceptor for error handling
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            // Unauthorized - clear token and redirect to login
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = '/admin/login';
@@ -40,7 +38,7 @@ api.interceptors.response.use(
 export const authAPI = {
     login: (credentials) => api.post('/auth/login', credentials),
     getProfile: () => api.get('/auth/profile'),
-    changePassword: (passwords) => api.post('/auth/change-password', passwords),
+    changePassword: (data) => api.post('/auth/change-password', data),
 };
 
 // Products API
